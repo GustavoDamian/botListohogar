@@ -1,6 +1,6 @@
 import requests
 
-# URL base de Producción
+# URL base de Producción (AWS API Gateway)
 BASE_URL = "https://jown604d8j.execute-api.us-east-2.amazonaws.com/api"
 
 def obtener_token():
@@ -9,7 +9,6 @@ def obtener_token():
     """
     url = f"{BASE_URL}/auth/login"
     
-    # IMPORTANTE: Usamos las keys exactas que vimos en el Postman de Samir
     payload = {
         "correo": "daniela.cevalloz@gmail.com",
         "contrasena": "Usuario123*"
@@ -18,19 +17,24 @@ def obtener_token():
     
     try:
         response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status() # Lanza error si el status no es 200 OK
+        response.raise_for_status() 
         datos = response.json()
         return datos.get("token")
     except Exception as e:
         print(f"[ERROR AUTH] Fallo al obtener el token: {e}")
         return None
 
-def obtener_catalogo_para_ia():
+def obtener_catalogo_para_ia(id_asesor=None):
     """
-    Consulta las propiedades y las formatea en texto plano 
-    para el System Prompt de la IA.
+    Consulta las propiedades y las formatea en texto plano.
+    Se preparó el endpoint para recibir el filtro por asesor si el backend lo soporta.
     """
     url = f"{BASE_URL}/propiedad/propiedades-recientes?page=0&size=10"
+    
+    # Si Samir habilita el filtro, lo inyectamos acá
+    if id_asesor:
+        url += f"&idAsesor={id_asesor}"
+        
     headers = {"Accept": "application/json"}
     
     try:
@@ -42,7 +46,6 @@ def obtener_catalogo_para_ia():
         catalogo_texto += "-" * 40 + "\n"
         
         for prop in propiedades:
-            # Extraemos los datos basándonos en el JSON que mandó Samir
             id_prop = prop.get("idPropiedad")
             titulo = prop.get("titulo")
             precio = prop.get("precio")
@@ -63,9 +66,9 @@ def obtener_catalogo_para_ia():
         print(f"[ERROR API] No se pudo obtener el catálogo: {e}")
         return "El catálogo de propiedades no está disponible en este momento."
 
-def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor=1):
+def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor):
     """
-    Envía el POST a la API para registrar la visita confirmada.
+    Envía el POST a la API para registrar la visita confirmada, inyectando el ID del asesor correspondiente.
     """
     token = obtener_token()
     if not token:
@@ -77,7 +80,6 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor=1):
         "Authorization": f"Bearer {token}"
     }
     
-    # Estructura de payload estricta basada en el JSON de Citas
     payload = {
         "idComprador": None,
         "idVendedor": None,
@@ -87,7 +89,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor=1):
         "fechaCita": fecha_cita,
         "hora": hora_cita,
         "idTipoCita": 1,
-        "lugarReferencia": "Agendado vía Bot de WhatsApp",
+        "lugarReferencia": "Agendado vía Motor IA ListoHogar",
         "duracionMinutos": 30,
         "latitud": 10,
         "longitud": 10,
@@ -108,15 +110,12 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor=1):
 # --- TEST LOCAL DE INTEGRIDAD ---
 if __name__ == "__main__":
     print("Probando conexión con AWS y credenciales...")
-    
-    # 1. Probamos el token
     token = obtener_token()
     if token:
         print("✅ Autenticación exitosa. Token obtenido.")
     else:
         print("❌ Fallo en la autenticación.")
         
-    # 2. Probamos el catálogo
     print("\nObteniendo Catálogo...")
     catalogo = obtener_catalogo_para_ia()
     print(catalogo)
