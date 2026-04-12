@@ -8,6 +8,3 @@ __pycache__/
 # Herramientas de túnel local (No van al servidor de producción)
 ngrok.exe
 .ngrok.exe.old
-
-# Documentación interna y apuntes (Opcional)
-Teoria/
