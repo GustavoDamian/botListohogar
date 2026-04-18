@@ -1,7 +1,16 @@
+import os
 import requests
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 # URL base de Producción (AWS API Gateway)
 BASE_URL = "https://jown604d8j.execute-api.us-east-2.amazonaws.com/api"
+
+# Traemos las credenciales desde el .env
+USER_EMAIL = os.getenv("API_LISTOHOGAR_USER")
+USER_PASS = os.getenv("API_LISTOHOGAR_PASS")
 
 def obtener_token():
     """
@@ -10,8 +19,8 @@ def obtener_token():
     url = f"{BASE_URL}/auth/login"
     
     payload = {
-        "correo": "daniela.cevalloz@gmail.com",
-        "contrasena": "Usuario123*"
+        "correo": USER_EMAIL,
+        "contrasena": USER_PASS
     }
     headers = {"Content-Type": "application/json"}
     
@@ -31,7 +40,6 @@ def obtener_catalogo_para_ia(id_asesor=None):
     """
     url = f"{BASE_URL}/propiedad/propiedades-recientes?page=0&size=10"
     
-    # Si Samir habilita el filtro, lo inyectamos acá
     if id_asesor:
         url += f"&idAsesor={id_asesor}"
         
