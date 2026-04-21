@@ -6,12 +6,12 @@ from flask import Flask, request, jsonify
 from openai import OpenAI
 from dotenv import load_dotenv
 import api_listohogar
-
+from flask_cors import CORS
 # Carga de variables de entorno
 load_dotenv()
 
 app = Flask(__name__)
-
+CORS(app)
 # Configuración de credenciales seguras
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Token de seguridad para blindar nuestro servidor de peticiones externas no autorizadas
