@@ -74,9 +74,10 @@ def obtener_catalogo_para_ia(id_asesor=None):
         print(f"[ERROR API] No se pudo obtener el catálogo: {e}")
         return "El catálogo de propiedades no está disponible en este momento."
 
-def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor):
+def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono):
     """
-    Envía el POST a la API para registrar la visita confirmada, inyectando el ID del asesor correspondiente.
+    Envía el POST a la API para registrar la visita confirmada, inyectando el ID del asesor correspondiente,
+    el nombre y el teléfono del cliente.
     """
     token = obtener_token()
     if not token:
@@ -104,7 +105,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor):
         "confirmadoPorVendedor": False,
         "confirmadoPorComprador": False,
         "calificacion": 3,
-        "comentariosAdicionales": "Lead generado automáticamente por IA"
+        "comentariosAdicionales": f"Lead IA - Nombre: {nombre} | Tel: {telefono}"
     }
     
     try:

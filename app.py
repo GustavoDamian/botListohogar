@@ -7,6 +7,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import api_listohogar
 from flask_cors import CORS
+
 # Carga de variables de entorno
 load_dotenv()
 
@@ -37,7 +38,7 @@ DIRECTRICES DE OPERACIÓN:
 1. Mantener un tono profesional, amable y orientado a conversión.
 2. Restringir la oferta exclusivamente a los items presentes en el catálogo inyectado. NUNCA inventes propiedades.
 3. Flujo esperado: Saludo -> Presentación de 1 o 2 propiedades relevantes (ocultando ID) -> CTA para agendar visita.
-4. GESTIÓN DE CITAS: Para procesar una solicitud de visita, es obligatorio recopilar: ID de propiedad, fecha (YYYY-MM-DD) y hora (HH:MM). Una vez obtenidos, se debe invocar la función 'agendar_cita'. No confirmar agendamientos sin ejecutar la herramienta.
+4. GESTIÓN DE CITAS: Para procesar una solicitud de visita, es obligatorio recopilar: ID de propiedad, fecha (YYYY-MM-DD), hora (HH:MM), NOMBRE DEL CLIENTE y TELÉFONO. Si falta el nombre o el teléfono, pregúntaselo amablemente antes de agendar. Una vez obtenidos, se debe invocar la función 'agendar_cita'. NUNCA agendes sin tener el nombre y teléfono.
 
 CATÁLOGO ACTIVO:
 {catalogo_actual}
@@ -87,15 +88,17 @@ def webhook_backend():
                 "type": "function",
                 "function": {
                     "name": "agendar_cita",
-                    "description": "Agenda una visita a la propiedad en el sistema de la inmobiliaria.",
+                    "description": "Agenda una visita a la propiedad en el sistema de la inmobiliaria. Requiere nombre y teléfono del interesado.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "id_propiedad": {"type": "integer", "description": "ID numérico de la propiedad"},
                             "fecha_cita": {"type": "string", "description": "Fecha en formato YYYY-MM-DD"},
-                            "hora_cita": {"type": "string", "description": "Hora en formato HH:MM"}
+                            "hora_cita": {"type": "string", "description": "Hora en formato HH:MM"},
+                            "nombre_cliente": {"type": "string", "description": "Nombre y apellido del cliente"},
+                            "telefono_cliente": {"type": "string", "description": "Número de teléfono o WhatsApp"}
                         },
-                        "required": ["id_propiedad", "fecha_cita", "hora_cita"]
+                        "required": ["id_propiedad", "fecha_cita", "hora_cita", "nombre_cliente", "telefono_cliente"]
                     }
                 }
             }
@@ -103,7 +106,7 @@ def webhook_backend():
 
         # 4. Ejecución de Inferencia
         respuesta_ia = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o-mini", # Atualizado para a versão mais rápida conforme as tuas preferências habituais, ou gpt-4o se for necessário.
             messages=mensajes_api,
             tools=herramientas,
             tool_choice="auto",
@@ -120,13 +123,15 @@ def webhook_backend():
                     id_prop = argumentos.get("id_propiedad")
                     fecha = argumentos.get("fecha_cita")
                     hora = argumentos.get("hora_cita")
+                    nombre = argumentos.get("nombre_cliente")
+                    telefono = argumentos.get("telefono_cliente")
                     
-                    print(f"[SYS_ACTION] Ejecutando agendar_cita_backend -> Asesor: {id_asesor_actual} | Propiedad: {id_prop} | Fecha: {fecha}")
+                    print(f"[SYS_ACTION] Ejecutando agendar_cita_backend -> Asesor: {id_asesor_actual} | Propiedad: {id_prop} | Fecha: {fecha} | Cliente: {nombre}")
                     
-                    exito, mensaje_backend = api_listohogar.agendar_cita_backend(id_prop, fecha, hora, id_asesor=id_asesor_actual)
+                    exito, mensaje_backend = api_listohogar.agendar_cita_backend(id_prop, fecha, hora, id_asesor=id_asesor_actual, nombre=nombre, telefono=telefono)
                     
                     if exito:
-                        texto_final = f"¡Excelente! Tu visita ha sido agendada con éxito para el {fecha} a las {hora}. {nombre_asesor_actual} o un miembro de nuestro equipo te contactará pronto."
+                        texto_final = f"¡Excelente! Tu visita ha sido agendada con éxito para el {fecha} a las {hora}. {nombre_asesor_actual} o un miembro de nuestro equipo te contactará pronto al número que nos indicaste."
                     else:
                         texto_final = f"Uy, hubo un pequeño problema técnico al registrar la cita: {mensaje_backend}. Por favor, aguarda un momento y te atenderemos manualmente."
                     
