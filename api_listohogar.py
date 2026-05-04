@@ -36,7 +36,6 @@ def obtener_token():
 def obtener_catalogo_para_ia(id_asesor=None):
     """
     Consulta las propiedades y las formatea en texto plano.
-    Se preparó el endpoint para recibir el filtro por asesor si el backend lo soporta.
     """
     url = f"{BASE_URL}/propiedad/propiedades-recientes?page=0&size=10"
     
@@ -76,8 +75,7 @@ def obtener_catalogo_para_ia(id_asesor=None):
 
 def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono):
     """
-    Envía el POST a la API para registrar la visita confirmada, inyectando el ID del asesor correspondiente,
-    el nombre y el teléfono del cliente.
+    Envía el POST a la API para registrar la visita confirmada.
     """
     token = obtener_token()
     if not token:
@@ -116,6 +114,22 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         print(f"[ERROR CITA] Falló el registro: {e}")
         return False, "Error al procesar la agenda."
 
+def notificar_asesor_backend(propiedad_id, tipo_escalada, resumen_lead, mensaje_cliente, urgencia, id_asesor):
+    """
+    Simula la notificación de escalada al asesor humano. (Fase futura: Enviar WhatsApp/Email)
+    """
+    print(f"[ESCALADA URGENTE] Asesor ID: {id_asesor} | Propiedad: {propiedad_id} | Tipo: {tipo_escalada}")
+    print(f"Resumen Lead: {resumen_lead}")
+    print(f"Último mensaje cliente: {mensaje_cliente}")
+    return True, "Asesor notificado con éxito."
+
+def guardar_lead_backend(propiedad_id, nombre_cliente, telefono_cliente, dias_recordatorio):
+    """
+    Simula el almacenamiento de un lead frío.
+    """
+    print(f"[LEAD FRÍO] Guardando seguimiento en {dias_recordatorio} días para {nombre_cliente} ({telefono_cliente}) en prop {propiedad_id}")
+    return True, "Lead almacenado."
+
 # --- TEST LOCAL DE INTEGRIDAD ---
 if __name__ == "__main__":
     print("Probando conexión con AWS y credenciales...")
@@ -124,7 +138,3 @@ if __name__ == "__main__":
         print("✅ Autenticación exitosa. Token obtenido.")
     else:
         print("❌ Fallo en la autenticación.")
-        
-    print("\nObteniendo Catálogo...")
-    catalogo = obtener_catalogo_para_ia()
-    print(catalogo)
