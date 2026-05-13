@@ -73,7 +73,7 @@ def obtener_catalogo_para_ia(id_asesor=None):
         print(f"[ERROR API] No se pudo obtener el catálogo: {e}")
         return "El catálogo de propiedades no está disponible en este momento."
 
-def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono):
+def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono, email):
     """
     Envía el POST a la API para registrar la visita confirmada.
     """
@@ -103,7 +103,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "confirmadoPorVendedor": False,
         "confirmadoPorComprador": False,
         "calificacion": 3,
-        "comentariosAdicionales": f"Lead IA - Nombre: {nombre} | Tel: {telefono}"
+        "comentariosAdicionales": f"Lead IA - Nombre: {nombre} | Tel: {telefono} | Email: {email}"
     }
     
     try:
