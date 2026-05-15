@@ -110,9 +110,14 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
         return True, "Cita agendada correctamente."
-    except Exception as e:
-        print(f"[ERROR CITA] Falló el registro: {e}")
+    except requests.exceptions.HTTPError as e:
+        # Esto va a imprimir EXACTAMENTE por qué Samir rechazó el JSON
+        print(f"[ERROR CITA] Status AWS: {e.response.status_code}")
+        print(f"[DETALLE RECHAZO AWS]: {e.response.text}")
         return False, "Error al procesar la agenda."
+    except Exception as e:
+        print(f"[ERROR RED] Falló la conexión: {e}")
+        return False, "Error interno de red."
 
 def notificar_asesor_backend(propiedad_id, tipo_escalada, resumen_lead, mensaje_cliente, urgencia, id_asesor):
     """
