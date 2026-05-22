@@ -29,7 +29,6 @@ def obtener_system_prompt(nombre_asesor, id_asesor, propiedad_id, historial_chat
     catalogo_actual = api_listohogar.obtener_catalogo_para_ia(id_asesor=id_asesor)
     fecha_hoy = obtener_hora_ecuador()
     
-    # Procesar historial para inyectarlo en el prompt maestro
     if isinstance(historial_chat, list):
         historial_str = "\n".join([f"{msg.get('role', 'Usuario')}: {msg.get('content', '')}" for msg in historial_chat])
     else:
@@ -51,9 +50,8 @@ DIRECTRICES DE OPERACIÓN:
 1. Tono profesional, cálido y orientado a conversión. Máximo 5 líneas por respuesta. Emojis con moderación.
 2. NUNCA inventes propiedades ni precios. Usa solo el catálogo inyectado. Si el precio no es visible en el catálogo, no lo menciones.
 3. Flujo: Saludo -> Calificación (financiamiento + urgencia) -> Información -> CTA visita -> Escalar si aplica.
-# En la función obtener_system_prompt, modificá la regla 4:
 4. !!! GESTIÓN DE CITAS (BLOQUEO ACTIVO) !!!: 
-ESTÁ ESTRICTAMENTE PROHIBIDO ejecutar la herramienta `agendar_cita` si el usuario no te ha escrito explícitamente su NOMBRE, su TELÉFONO real y su CORREO ELECTRÓNICO (EMAIL) en esta conversación. Si el usuario pide agendar pero falta alguno de estos 3 datos, DEBES detenerte y responder: "¡Claro! Para coordinar la visita con {nombre_asesor}, por favor dime tu nombre completo, un número de contacto y tu correo electrónico." NO inventes datos. Obtén OBLIGATORIAMENTE: nombre, teléfono, email, fecha (YYYY-MM-DD) y hora (HH:MM).
+ESTÁ ESTRICTAMENTE PROHIBIDO ejecutar la herramienta `agendar_cita` si el usuario no te ha escrito explícitamente su NOMBRE, su TELÉFONO real y su CORREO ELECTRÓNICO (EMAIL) en esta conversación. Si el usuario pide agendar pero falta alguno de estos 3 datos, DEBES detenerte y responder: "¡Claro! Para coordinar la visita con {nombre_asesor}, por favor dime tu nombre completo, un número de contacto y tu correo electrónico." NO inventes datos. NO uses "Usuario" o "Cliente" como nombre. Obtén OBLIGATORIAMENTE: nombre, teléfono, email, fecha (YYYY-MM-DD) y hora (HH:MM).
 5. ESCALADA: Si el cliente pregunta precio, negocia, menciona defectos, expresa miedo o hace consultas legales -> transfiere inmediatamente a {nombre_asesor} via notificar_asesor.
 6. Antes de escalar, captura: tipo financiamiento + urgencia de compra + temperatura del lead (Caliente/Tibio/Frío).
 7. SEÑALES DE ESCALADA AUTOMÁTICA: 'cuánto cuesta', 'negociar', 'descuento', 'contrato', 'firmar', 'desistir', 'miedo', 'no entiendo', 'grieta', 'humedad', 'confiable', 'estafa'.
@@ -89,7 +87,7 @@ def webhook_backend():
     nombre_asesor_actual = data.get('nombre_asesor', 'Asesor ListoHogar')
     mensaje_cliente = data.get('mensaje')
     historial = data.get('historial', []) 
-    propiedad_id = data.get('propiedad_id', 'No especificada') # Parámetro nuevo según la v2.0
+    propiedad_id = data.get('propiedad_id', 'No especificada') 
 
     if not mensaje_cliente or not id_asesor_actual:
         return jsonify({"error": "Parámetros obligatorios faltantes: id_asesor, mensaje", "status": "fail"}), 400
@@ -111,19 +109,18 @@ def webhook_backend():
                 "type": "function",
                 "function": {
                     "name": "agendar_cita",
-                    "description": "Agenda una visita a la propiedad. OBLIGATORIO recopilar antes: nombre, teléfono, fecha y hora.",
+                    "description": "Agenda una visita a la propiedad. OBLIGATORIO recopilar antes: nombre, teléfono, email, fecha y hora.",
                     "parameters": {
                         "type": "object",
-                        # En la lista de 'herramientas', agregá el email a las properties y a los required:
-"properties": {
-    "id_propiedad": {"type": "integer"},
-    "fecha_cita": {"type": "string", "description": "YYYY-MM-DD"},
-    "hora_cita": {"type": "string", "description": "HH:MM"},
-    "nombre_cliente": {"type": "string"},
-    "telefono_cliente": {"type": "string"},
-    "email_cliente": {"type": "string", "description": "Correo electrónico del cliente"} # NUEVO
-},
-"required": ["id_propiedad", "fecha_cita", "hora_cita", "nombre_cliente", "telefono_cliente", "email_cliente"] # NUEVO
+                        "properties": {
+                            "id_propiedad": {"type": "integer"},
+                            "fecha_cita": {"type": "string", "description": "YYYY-MM-DD"},
+                            "hora_cita": {"type": "string", "description": "HH:MM"},
+                            "nombre_cliente": {"type": "string"},
+                            "telefono_cliente": {"type": "string"},
+                            "email_cliente": {"type": "string", "description": "Correo electrónico del cliente"}
+                        },
+                        "required": ["id_propiedad", "fecha_cita", "hora_cita", "nombre_cliente", "telefono_cliente", "email_cliente"]
                     }
                 }
             },
@@ -175,7 +172,7 @@ def webhook_backend():
         
         mensaje_respuesta = respuesta_ia.choices[0].message
         
-        # 5. Evaluación de Ejecución de Código (Function Calling Múltiple)
+        # 5. Evaluación de Ejecución de Código
         if mensaje_respuesta.tool_calls:
             for tool_call in mensaje_respuesta.tool_calls:
                 nombre_funcion = tool_call.function.name
@@ -188,9 +185,10 @@ def webhook_backend():
                     nombre = argumentos.get("nombre_cliente")
                     telefono = argumentos.get("telefono_cliente")
                     email = argumentos.get("email_cliente")
+                    
                     print(f"[SYS_ACTION] Agendando cita -> Asesor: {id_asesor_actual} | Cliente: {nombre}")
                     exito, mensaje_backend = api_listohogar.agendar_cita_backend(id_prop, fecha, hora, id_asesor_actual, nombre, telefono, email)
-
+                    
                     if exito:
                         texto_final = f"¡Excelente! Tu visita ha sido agendada con éxito para el {fecha} a las {hora}. {nombre_asesor_actual} te contactará pronto al {telefono}."
                     else:

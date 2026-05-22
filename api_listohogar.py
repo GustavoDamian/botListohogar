@@ -87,6 +87,9 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "Authorization": f"Bearer {token}"
     }
     
+    # IMPORTANTE: Texto plano limpio sin caracteres especiales como '|' o ':' para evitar bloqueos de AWS
+    comentarios_limpios = f"Lead de IA. Nombre de cliente {nombre}. Telefono de contacto {telefono}. Email de contacto {email}."
+    
     payload = {
         "idComprador": None,
         "idVendedor": None,
@@ -96,14 +99,14 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "fechaCita": fecha_cita,
         "hora": hora_cita,
         "idTipoCita": 1,
-        "lugarReferencia": "Agendado vía Motor IA ListoHogar",
+        "lugarReferencia": "Agendado via Motor IA ListoHogar",
         "duracionMinutos": 30,
         "latitud": 10,
         "longitud": 10,
         "confirmadoPorVendedor": False,
         "confirmadoPorComprador": False,
         "calificacion": 3,
-        "comentariosAdicionales": f"Lead IA - Nombre: {nombre} | Tel: {telefono} | Email: {email}"
+        "comentariosAdicionales": comentarios_limpios
     }
     
     try:
@@ -111,17 +114,16 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         response.raise_for_status()
         return True, "Cita agendada correctamente."
     except requests.exceptions.HTTPError as e:
-        # Esto va a imprimir EXACTAMENTE por qué Samir rechazó el JSON
         print(f"[ERROR CITA] Status AWS: {e.response.status_code}")
         print(f"[DETALLE RECHAZO AWS]: {e.response.text}")
         return False, "Error al procesar la agenda."
     except Exception as e:
-        print(f"[ERROR RED] Falló la conexión: {e}")
+        print(f"[ERROR RED] Fallo la conexion: {e}")
         return False, "Error interno de red."
 
 def notificar_asesor_backend(propiedad_id, tipo_escalada, resumen_lead, mensaje_cliente, urgencia, id_asesor):
     """
-    Simula la notificación de escalada al asesor humano. (Fase futura: Enviar WhatsApp/Email)
+    Simula la notificación de escalada al asesor humano.
     """
     print(f"[ESCALADA URGENTE] Asesor ID: {id_asesor} | Propiedad: {propiedad_id} | Tipo: {tipo_escalada}")
     print(f"Resumen Lead: {resumen_lead}")
@@ -135,7 +137,6 @@ def guardar_lead_backend(propiedad_id, nombre_cliente, telefono_cliente, dias_re
     print(f"[LEAD FRÍO] Guardando seguimiento en {dias_recordatorio} días para {nombre_cliente} ({telefono_cliente}) en prop {propiedad_id}")
     return True, "Lead almacenado."
 
-# --- TEST LOCAL DE INTEGRIDAD ---
 if __name__ == "__main__":
     print("Probando conexión con AWS y credenciales...")
     token = obtener_token()
