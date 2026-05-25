@@ -73,9 +73,36 @@ def obtener_catalogo_para_ia(id_asesor=None):
         print(f"[ERROR API] No se pudo obtener el catálogo: {e}")
         return "El catálogo de propiedades no está disponible en este momento."
 
+def limpiar_texto_extremo(texto):
+    """
+    Sanitiza el texto al extremo para evadir expresiones regulares estrictas en bases de datos.
+    Convierte signos comunes a palabras, remueve acentos y elimina toda puntuación.
+    Garantiza un resultado estrictamente compuesto por letras, números y espacios.
+    """
+    if not texto:
+        return ""
+    
+    # Conversión semántica de caracteres conflictivos obligatorios (como los del email)
+    texto = texto.replace("@", " arroba ").replace(".", " punto ")
+    
+    # Normalización manual de caracteres con acentos o diéresis
+    reemplazos = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'ñ': 'n', 'Ñ': 'N'
+    }
+    for orig, dest in reemplazos.items():
+        texto = texto.replace(orig, dest)
+        
+    # Filtrar preservando únicamente caracteres alfabéticos ASCII estándar, dígitos y espacios
+    texto_filtrado = "".join(c for c in texto if (c.isalpha() and c.isascii()) or c.isdigit() or c.isspace())
+    
+    # Colapsar espacios múltiples en uno solo
+    return " ".join(texto_filtrado.split())
+
 def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono, email):
     """
-    Envía el POST a la API para registrar la visita confirmada.
+    Envía el POST a la API para registrar la visita confirmada con payload sanitizado.
     """
     token = obtener_token()
     if not token:
@@ -87,8 +114,11 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "Authorization": f"Bearer {token}"
     }
     
-    # IMPORTANTE: Texto plano limpio sin caracteres especiales como '|' o ':' para evitar bloqueos de AWS
-    comentarios_limpios = f"Lead de IA. Nombre de cliente {nombre}. Telefono de contacto {telefono}. Email de contacto {email}."
+    # Construcción de la cadena informativa original
+    raw_comentarios = f"Lead de IA Nombre de cliente {nombre} Telefono de contacto {telefono} Email de contacto {email}"
+    
+    # Aplicación del filtro defensivo extremo (Garantiza letras, números y espacios puros)
+    comentarios_sanos = limpiar_texto_extremo(raw_comentarios)
     
     payload = {
         "idComprador": None,
@@ -96,7 +126,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "idAsesor": id_asesor,
         "estadoCita": 1,
         "idPropiedad": id_propiedad,
-        "fechaCita": f"{fecha_cita}T{hora_cita}:00", 
+        "fechaCita": f"{fecha_cita}T{hora_cita}:00", # Formato ISO estricto requerido por el @JsonFormat de Samir
         "hora": hora_cita,
         "idTipoCita": 1,
         "lugarReferencia": "Agendado via Motor IA ListoHogar",
@@ -106,7 +136,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "confirmadoPorVendedor": False,
         "confirmadoPorComprador": False,
         "calificacion": 3,
-        "comentariosAdicionales": comentarios_limpios
+        "comentariosAdicionales": comentarios_sanos
     }
     
     try:
@@ -118,7 +148,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         print(f"[DETALLE RECHAZO AWS]: {e.response.text}")
         return False, "Error al procesar la agenda."
     except Exception as e:
-        print(f"[ERROR RED] Fallo la conexion: {e}")
+        print(f"[ERROR RED] Falló la conexión: {e}")
         return False, "Error interno de red."
 
 def notificar_asesor_backend(propiedad_id, tipo_escalada, resumen_lead, mensaje_cliente, urgencia, id_asesor):
