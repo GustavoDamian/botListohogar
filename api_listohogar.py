@@ -114,11 +114,18 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "Authorization": f"Bearer {token}"
     }
     
-    # Construcción de la cadena informativa original
+    # 1. Aplicación del filtro defensivo extremo en comentarios (Ya validado y funcional)
     raw_comentarios = f"Lead de IA Nombre de cliente {nombre} Telefono de contacto {telefono} Email de contacto {email}"
-    
-    # Aplicación del filtro defensivo extremo (Garantiza letras, números y espacios puros)
     comentarios_sanos = limpiar_texto_extremo(raw_comentarios)
+    
+    # 2. Control y parseo defensivo de la fecha para evitar duplicaciones si el LLM envía formato ISO completo
+    fecha_limpia = str(fecha_cita).split("T")[0].strip()
+    hora_limpia = str(hora_cita).strip()
+    
+    # Ensamblamos el formato yyyy-MM-dd'T'HH:mm:ss requerido por la anotación @JsonFormat de Samir
+    fecha_cita_iso = f"{fecha_limpia}T{hora_limpia}"
+    if len(fecha_cita_iso) == 16:  # Si el string resultante tiene la longitud de yyyy-MM-ddTHH:mm
+        fecha_cita_iso += ":00"
     
     payload = {
         "idComprador": None,
@@ -126,8 +133,8 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "idAsesor": id_asesor,
         "estadoCita": 1,
         "idPropiedad": id_propiedad,
-        "fechaCita": f"{fecha_cita}T{hora_cita}:00", # Formato ISO estricto requerido por el @JsonFormat de Samir
-        "hora": hora_cita,
+        "fechaCita": fecha_cita_iso, 
+        "hora": hora_limpia,
         "idTipoCita": 1,
         "lugarReferencia": "Agendado via Motor IA ListoHogar",
         "duracionMinutos": 30,
