@@ -103,7 +103,7 @@ def limpiar_texto_extremo(texto):
 
 def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono, email):
     """
-    Envía el POST a la API para registrar la visita confirmada con un blindaje absoluto de datos.
+    Envía el POST a la API para registrar la visita confirmada pasando la fecha limpia YYYY-MM-DD.
     """
     token = obtener_token()
     if not token:
@@ -115,15 +115,14 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "Authorization": f"Bearer {token}"
     }
     
-    # 1. Filtro defensivo extremo en comentarios
+    # 1. Filtro defensivo de comentarios
     raw_comentarios = f"Lead de IA Nombre de cliente {nombre} Telefono de contacto {telefono} Email de contacto {email}"
     comentarios_sanos = limpiar_texto_extremo(raw_comentarios)
     
-    # 2. Blindaje absoluto de Fecha y Hora contra duplicaciones del LLM o del Frontend
+    # 2. Aislamiento estricto de la fecha para enviar solo YYYY-MM-DD
     fecha_str = str(fecha_cita).strip()
     hora_str = str(hora_cita).strip()
     
-    # Aislamiento matemático estricto del YYYY-MM-DD
     if "T" in fecha_str:
         fecha_limpia = fecha_str.split("T")[0].strip()
     else:
@@ -134,12 +133,8 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
     else:
         hora_limpia = hora_str
 
-    # Forzamos formato HH:MM (5 caracteres) para la Regex del backend (^\\d{2}:\\d{2}$)
     if len(hora_limpia) > 5:
         hora_limpia = hora_limpia[:5]
-        
-    # Ensamblamos el formato ISO final perfecto esperado por Spring Boot
-    fecha_cita_iso = f"{fecha_limpia}T{hora_limpia}:00"
     
     payload = {
         "idComprador": None,
@@ -147,7 +142,7 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "idAsesor": id_asesor,
         "estadoCita": 1,
         "idPropiedad": id_propiedad,
-        "fechaCita": fecha_cita_iso, 
+        "fechaCita": fecha_limpia,  # 👈 SOLUCIÓN REAL: Solo YYYY-MM-DD sin agregados temporales
         "hora": hora_limpia,
         "idTipoCita": 1,
         "lugarReferencia": "Agendado via Motor IA ListoHogar",
@@ -160,7 +155,6 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "comentariosAdicionales": comentarios_sanos
     }
     
-    # LOG DE EVIDENCIA ARQUITECTÓNICA: Guardamos registro exacto de lo que Python despacha
     print(f"\n[DEBUG OUTBOUND] PAYLOAD ENVIADO EN EL BODY A AWS:")
     print(json.dumps(payload, indent=2))
     print("-" * 50)
