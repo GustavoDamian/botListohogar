@@ -102,7 +102,7 @@ def limpiar_texto_extremo(texto):
 
 def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre, telefono, email):
     """
-    Envía el POST a la API para registrar la visita confirmada con payload sanitizado.
+    Envía el POST a la API para registrar la visita confirmada con payload sanitizado y formateado.
     """
     token = obtener_token()
     if not token:
@@ -114,18 +114,32 @@ def agendar_cita_backend(id_propiedad, fecha_cita, hora_cita, id_asesor, nombre,
         "Authorization": f"Bearer {token}"
     }
     
-    # 1. Aplicación del filtro defensivo extremo en comentarios (Ya validado y funcional)
+    # 1. Filtro defensivo extremo en comentarios (Ya validado y funcional)
     raw_comentarios = f"Lead de IA Nombre de cliente {nombre} Telefono de contacto {telefono} Email de contacto {email}"
     comentarios_sanos = limpiar_texto_extremo(raw_comentarios)
     
-    # 2. Control y parseo defensivo de la fecha para evitar duplicaciones si el LLM envía formato ISO completo
-    fecha_limpia = str(fecha_cita).split("T")[0].strip()
-    hora_limpia = str(hora_cita).strip()
+    # 2. Control estricto y aislamiento de fecha y hora para evitar duplicaciones del LLM
+    fecha_str = str(fecha_cita).strip()
+    hora_str = str(hora_cita).strip()
     
-    # Ensamblamos el formato yyyy-MM-dd'T'HH:mm:ss requerido por la anotación @JsonFormat de Samir
+    if "T" in fecha_str:
+        partes = fecha_str.split("T")
+        fecha_limpia = partes[0].strip()
+        hora_limpia = partes[1].strip() if (not hora_str or ":" not in hora_str) else hora_str
+    else:
+        fecha_limpia = fecha_str
+        hora_limpia = hora_str
+
+    # Forzar a que la hora tenga exactamente formato HH:MM (5 caracteres) para cumplir con la Regex de Samir: ^\d{2}:\d{2}$
+    if len(hora_limpia) > 5:
+        hora_limpia = hora_limpia[:5]
+        
+    # Construcción garantizada del formato yyyy-MM-dd'T'HH:mm:ss requerido por AWS
     fecha_cita_iso = f"{fecha_limpia}T{hora_limpia}"
-    if len(fecha_cita_iso) == 16:  # Si el string resultante tiene la longitud de yyyy-MM-ddTHH:mm
+    if len(fecha_cita_iso) == 16:  # Si es yyyy-MM-ddTHH:mm
         fecha_cita_iso += ":00"
+    elif len(fecha_cita_iso) > 19:
+        fecha_cita_iso = fecha_cita_iso[:19]
     
     payload = {
         "idComprador": None,
